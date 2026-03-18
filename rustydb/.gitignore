@@ -1,0 +1,22 @@
+# Rust build output
+/target/
+
+# macOS junk
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+
+# Database files
+*.db
+*.wal
+*.sst
+data/
+storage/
