@@ -47,26 +47,31 @@ impl Database {
     pub fn get(&self, key: &str) -> Option<String> {
         // 1. Check memory first
         if let Some(val) = self.store.get(key) {
+            println!("Found in memory!");
             return Some(val.clone());
         }
 
         // 2. Check SSTables (latest first)
         for i in (1..=self.sst_count).rev() {
             let filename = format!("data/sst_{}.txt", i);
-            if let Ok(file) = File::open(filename) {
-                let reader = BufReader::new(file);
-
-                for line in reader.lines() {
-                    let line = line.unwrap();
-                    let parts: Vec<&str> = line.split_whitespace().collect();
-
-                    if parts.len() == 2 && parts[0] == key {
-                        return Some(parts[1].to_string());
-                    }
-                }
+            if let Some(val) = Database::search_sstable(&filename, key) {
+                println!("Found in SSTable: {}", filename);
+                return Some(val);
             }
-        }
+            // if let Ok(file) = File::open(filename) {
+            //     let reader = BufReader::new(file);
 
+            //     for line in reader.lines() {
+            //         let line = line.unwrap();
+            //         let parts: Vec<&str> = line.split_whitespace().collect();
+
+            //         if parts.len() == 2 && parts[0] == key {
+            //             return Some(parts[1].to_string());
+            //         }
+            //     }
+            // }
+        }
+        println!("Not found in memory or SSTables.");
         None
     }
 
@@ -161,5 +166,42 @@ impl Database {
         self.sst_count = 1;
 
         println!("Compaction complete!");
+    }
+
+    fn search_sstable(filename: &str, key: &str) -> Option<String> {
+        let file = File::open(filename).ok()?;
+        let reader = BufReader::new(file);
+
+        // Load all lines into vector
+        let mut entries: Vec<(String, String)> = Vec::new();
+
+        for line in reader.lines() {
+            let line = line.ok()?;
+            let parts: Vec<&str> = line.split_whitespace().collect();
+
+            if parts.len() == 2 {
+                entries.push((parts[0].to_string(), parts[1].to_string()));
+            }
+        }
+
+        // Binary search
+        let mut left = 0;
+        let mut right = entries.len();
+
+        while left < right {
+            let mid = (left + right) / 2;
+            let (ref k, ref v) = entries[mid];
+
+            if k == key {
+                println!("Found in SSTable: {} Binary search", filename);
+                return Some(v.clone());
+            } else if k.as_str() < key {
+                left = mid + 1;
+            } else {
+                right = mid;
+            }
+        }
+
+        None
     }
 }
